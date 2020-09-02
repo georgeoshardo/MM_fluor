@@ -18,13 +18,14 @@ from skimage.measure import regionprops
 from tqdm import tqdm
 
 experiment_directory = "/home/camillo/Desktop/cm967/3n1_sfGFP/"
+export_directory = "/home/georgeos/Documents/"
 experiment_files = os.listdir(experiment_directory)
-experiment_files.sort()
-
-
-
-channels = ["GFP", "RFP"]
+segmentation_channel = "GFP"
+analysis_channel = "RFP"
+good_crop = [130, 480, 0, 2050]
 grid = generate_grid_xy(100)
+
+experiment_files.sort()
 FOVs = []
 for x in range(len(grid)):
     if len(glob.glob(str(experiment_directory)+"/*"+str(grid[x])+"*")) > 0:
@@ -38,14 +39,14 @@ for f in range(len(FOVs)):
         pass
     else:
         all_cells = []
-        image_dirs = get_img_dirs(experiment_directory, FOVs[f], "RFP")
-        image_dirs_analyse = get_img_dirs(experiment_directory, FOVs[f], "GFP")
+        image_dirs = get_img_dirs(experiment_directory, FOVs[f], segmentation_channel)
+        image_dirs_analyse = get_img_dirs(experiment_directory, FOVs[f], analysis_channel)
         image_dirs.sort()
         image_dirs_analyse.sort()
         def get_timelapse_mother_coordinate_centroid(i):
             image = Image.open(image_dirs[i])
             image = np.array(image)
-            image = crop_image(image, [130, 480, 0, image.shape[1]])
+            image = crop_image(image, good_crop)
             watershed_segmentation = watershed_from_image(image)
             cell_centroids, cell_coordinates = get_centroids_from_watershed(watershed_segmentation)
             mother_cell_centroids, mother_cell_coordinate = get_mother_from_coords(cell_centroids, cell_coordinates)
@@ -54,11 +55,11 @@ for f in range(len(FOVs)):
             #    mother_cell_labels.append(get_mother_label_from_coordinate(mother_cell_coordinate[x], watershed_segmentation))
  
             ## A bit to return YFP channel
-            image_GFP = Image.open(image_dirs_analyse[i])
-            image_GFP = np.array(image_GFP)
-            image_GFP = crop_image(image_GFP, [130, 480, 0, image.shape[1]])
+            image_analyse = Image.open(image_dirs_analyse[i])
+            image_analyse = np.array(image_analyse)
+            image_analyse = crop_image(image_analyse, good_crop)
  
-            return mother_cell_coordinate, mother_cell_centroids, watershed_segmentation, image_GFP
+            return mother_cell_coordinate, mother_cell_centroids, watershed_segmentation, image_analyse
  
  
  
@@ -95,7 +96,7 @@ for f in range(len(FOVs)):
         clustering
  
  
-        to_append = [X, mother_cell_coordinate_flattened, clustering.labels_, FOVs[f], "RFP", all_images]
+        to_append = [X, mother_cell_coordinate_flattened, clustering.labels_, FOVs[f], segmentation_channel, all_images]
  
         all_cells.append(to_append)
 
@@ -153,7 +154,7 @@ for f in range(len(FOVs)):
 
     all_trajectories.columns = ["mother cell bin label", "FOV", "timeseries intensity", "timeseries filled area"]
     all_trajectories.reset_index(inplace=True)
-    all_trajectories.to_pickle("/home/georgeos/Documents/RFP_growth_{}.pkl".format(FOVs[f]))
+    all_trajectories.to_pickle("{}/RFP_growth_{}.pkl".format(export_directory,FOVs[f]))
 
 print("Done")
 end = time.time()
